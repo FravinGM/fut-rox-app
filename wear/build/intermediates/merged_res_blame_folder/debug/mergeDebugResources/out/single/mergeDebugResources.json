@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "br.futrox.wear-debug-45:/font_barlow_bold.ttf.flat",
+        "source": "br.futrox.wear-main-47:/font/barlow_bold.ttf"
+    },
+    {
+        "merged": "C:\\Users\\ic3fo\\.gradle\\daemon\\8.9\\br.futrox.wear-debug-45:\\drawable_ic_launcher.xml.flat",
+        "source": "C:\\Users\\ic3fo\\.gradle\\daemon\\8.9\\br.futrox.wear-main-47:\\drawable\\ic_launcher.xml"
+    },
+    {
+        "merged": "br.futrox.wear-debug-45:/font_barlow_semibold.ttf.flat",
+        "source": "br.futrox.wear-main-47:/font/barlow_semibold.ttf"
+    },
+    {
+        "merged": "br.futrox.wear-debug-45:/font_dmsans.ttf.flat",
+        "source": "br.futrox.wear-main-47:/font/dmsans.ttf"
+    }
+]

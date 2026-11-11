@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml:2:13-83
+INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml:2:13-83
+	package
+		INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml
+	xmlns:android
+		ADDED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml:2:23-81
+uses-sdk
+INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml reason: use-sdk injection requested
+INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml
+INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml
+	android:targetSdkVersion
+		INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml
+	android:minSdkVersion
+		INJECTED from C:\Users\ic3fo\Documents\Projetos\FutRox\core\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1728132345028141623.xml
