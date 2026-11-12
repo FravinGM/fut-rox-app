@@ -1,0 +1,24 @@
+# Build / IDE
+.gradle/
+.kotlin/
+build/
+**/build/
+.idea/
+*.iml
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Configuração local da máquina
+local.properties
+
+# Segredos: chave de assinatura e senhas (faça backup fora do git!)
+keystore/
+keystore.properties
+*.jks
+*.keystore
+
+# Logs e temporários
+*.log
+*.apk
+*.aab

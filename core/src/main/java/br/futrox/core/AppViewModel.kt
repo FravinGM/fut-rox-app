@@ -23,24 +23,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val api = Api(app)
     private val drafts = DraftStore(app)
     private val canUse get() = !Api.REQUIRE_LOGIN || api.hasSession
-    private val _state = MutableStateFlow(UiState(loggedIn = !Api.REQUIRE_LOGIN || api.hasSession))
+    private val _state = MutableStateFlow(UiState(loggedIn = canUse))
     val state: StateFlow<UiState> = _state
-
-    val email get() = api.email
 
     init { if (canUse) loadMatches() }
 
+    /** Executa [block] fora da thread principal. Ignora se já houver uma operação em andamento (evita envio duplo). */
     private fun <T> run(block: () -> T, onOk: (T) -> Unit) {
+        if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { block() }
-                onOk(r)
                 _state.update { it.copy(loading = false, loggedIn = canUse) }
+                onOk(r)
             } catch (e: ApiException) {
                 _state.update { it.copy(loading = false, error = e.message, loggedIn = canUse) }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = "Erro inesperado: ${e.message}") }
+                // Não mostra detalhes internos da exceção na tela.
+                _state.update { it.copy(loading = false, error = "Algo deu errado. Tente de novo.", loggedIn = canUse) }
             }
         }
     }
@@ -49,8 +50,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         run({ api.login(email, password) }) { loadMatches() }
 
     fun logout() {
-        api.logout(); drafts.clear()
-        _state.value = UiState()
+        val token = api.logout()
+        drafts.clear()
+        _state.value = UiState(loggedIn = canUse)
+        viewModelScope.launch(Dispatchers.IO) { api.revoke(token) }
     }
 
     fun loadMatches() = run({ api.matches() }) { list -> _state.update { it.copy(matches = list) } }
@@ -73,6 +76,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun mutate(f: (Game) -> Game) {
         val g = _state.value.game ?: return
         val n = f(g)
+        if (n === g) return
         drafts.save(n)
         _state.update { it.copy(game = n, error = null) }
     }
@@ -87,4 +91,3 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 }
-

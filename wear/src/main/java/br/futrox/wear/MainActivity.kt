@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -32,14 +33,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.SwipeToDismissBox
 import androidx.wear.compose.material.Text
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.items
 import br.futrox.core.AppViewModel
 import br.futrox.core.Game
 import br.futrox.core.Match
@@ -54,19 +56,28 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { Root(vm) } }
+        setContent { MaterialTheme { Root(vm, onExit = { finish() }) } }
     }
 }
 
 @Composable
-private fun Root(vm: AppViewModel) {
+private fun Root(vm: AppViewModel, onExit: () -> Unit) {
     val s by vm.state.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        when {
-            !s.loggedIn -> Login(vm, s.loading, s.error)
-            s.game == null -> MatchList(vm, s.matches, s.loading, s.error)
-            else -> GameScreen(vm, s.game!!, s.loading, s.error, s.saved)
+    val g = s.game
+    if (!s.loggedIn || g == null) {
+        val rootKey = if (!s.loggedIn) "login" else "matches"
+        key(rootKey) {
+            SwipeToDismissBox(onDismissed = onExit) { isBg ->
+                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    if (!isBg) {
+                        if (!s.loggedIn) Login(vm, s.loading, s.error)
+                        else MatchList(vm, s.matches, s.loading, s.error)
+                    }
+                }
+            }
         }
+    } else {
+        GameScreen(vm, g, s.loading, s.error, s.saved)
     }
 }
 
@@ -153,68 +164,86 @@ private fun GameScreen(vm: AppViewModel, game: Game, loading: Boolean, error: St
         }
     }
 
-    BackHandler(enabled = step != "main") { step = "main" }
-
-    if (saved) {
-        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Placar salvo!", fontSize = 18.sp, color = ColorA)
-            Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 24.sp)
-            Chip(onClick = { vm.close() }, label = { Text("Voltar") }, colors = ChipDefaults.primaryChipColors())
+    val goBack: () -> Unit = {
+        when {
+            saved -> vm.close()
+            step == "assist" -> step = "scorer"
+            step != "main" -> step = "main"
+            else -> vm.close()
         }
-        return
     }
 
-    when (step) {
-        "scorer" -> PlayerPicker(
-            title = "Quem fez o gol?", team = scorerTeam,
-            players = game.match.team(scorerTeam).map { it.id to it.name },
-        ) { go(Step.Assist(scorerTeam, it)) }
+    BackHandler(onBack = goBack)
 
-        "assist" -> PlayerPicker(
-            title = "Assistência?", team = scorerTeam,
-            players = listOf("" to "Sem assistência") +
-                game.match.team(scorerTeam).filter { it.id != scorer }.map { it.id to it.name },
-        ) {
-            vm.goal(scorerTeam, scorer, it.ifEmpty { null })
-            step = "main"
-        }
+    val screenKey = if (saved) "saved" else "${game.match.id}:$step"
+    key(screenKey) {
+        SwipeToDismissBox(onDismissed = goBack) { isBg ->
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                if (isBg) return@Box
 
-        "confirm" -> Column(
-            Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("Encerrar partida?", fontSize = 15.sp)
-            Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 26.sp)
-            if (error != null) Text(error, color = Color(0xFFFF6B6B), fontSize = 11.sp, textAlign = TextAlign.Center)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { step = "main" }, colors = ButtonDefaults.secondaryButtonColors()) { Text("Não") }
-                Button(onClick = { vm.finish() }, enabled = !loading, colors = ButtonDefaults.primaryButtonColors()) {
-                    Text(if (loading) "…" else "Sim")
+                if (saved) {
+                    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Placar salvo!", fontSize = 18.sp, color = ColorA)
+                        Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 24.sp)
+                        Chip(onClick = { vm.close() }, label = { Text("Voltar") }, colors = ChipDefaults.primaryChipColors())
+                    }
+                    return@Box
                 }
-            }
-        }
 
-        else -> Column(
-            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 34.sp)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                for (t in Team.entries) {
-                    Button(
-                        onClick = { go(Step.Scorer(t)) },
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-                        colors = ButtonDefaults.buttonColors(backgroundColor = teamColor(t)),
-                    ) { Text("⚽ ${t.name}", fontSize = 14.sp, color = Color(0xFF10372D)) }
+                when (step) {
+                    "scorer" -> PlayerPicker(
+                        title = "Quem fez o gol?", team = scorerTeam,
+                        players = game.match.team(scorerTeam).map { it.id to it.name },
+                    ) { go(Step.Assist(scorerTeam, it)) }
+
+                    "assist" -> PlayerPicker(
+                        title = "Assistência?", team = scorerTeam,
+                        players = listOf("" to "Sem assistência") +
+                            game.match.team(scorerTeam).filter { it.id != scorer }.map { it.id to it.name },
+                    ) {
+                        vm.goal(scorerTeam, scorer, it.ifEmpty { null })
+                        step = "main"
+                    }
+
+                    "confirm" -> Column(
+                        Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("Encerrar partida?", fontSize = 15.sp)
+                        Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 26.sp)
+                        if (error != null) Text(error, color = Color(0xFFFF6B6B), fontSize = 11.sp, textAlign = TextAlign.Center)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { step = "main" }, colors = ButtonDefaults.secondaryButtonColors()) { Text("Não") }
+                            Button(onClick = { vm.finish() }, enabled = !loading, colors = ButtonDefaults.primaryButtonColors()) {
+                                Text(if (loading) "…" else "Sim")
+                            }
+                        }
+                    }
+
+                    else -> Column(
+                        Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("${game.score(Team.A)} x ${game.score(Team.B)}", fontSize = 34.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            for (t in Team.entries) {
+                                Button(
+                                    onClick = { go(Step.Scorer(t)) },
+                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(backgroundColor = teamColor(t)),
+                                ) { Text("⚽ ${t.name}", fontSize = 14.sp, color = Color(0xFF10372D)) }
+                            }
+                        }
+                        val last = game.events.lastOrNull()
+                        Text(
+                            last?.let { "${game.name(it.team, it.scorerId)}" + (it.assistId?.let { a -> " (ass. ${game.name(it.team, a)})" } ?: "") } ?: "Toque no time que marcou",
+                            fontSize = 11.sp, color = Color.Gray, maxLines = 2, textAlign = TextAlign.Center,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Button(onClick = { vm.undo() }, enabled = game.events.isNotEmpty(), colors = ButtonDefaults.secondaryButtonColors()) { Text("↩") }
+                            Button(onClick = { go(Step.Confirm) }, colors = ButtonDefaults.primaryButtonColors()) { Text("✓") }
+                        }
+                    }
                 }
-            }
-            val last = game.events.lastOrNull()
-            Text(
-                last?.let { "${game.name(it.team, it.scorerId)}" + (it.assistId?.let { a -> " (ass. ${game.name(it.team, a)})" } ?: "") } ?: "Toque no time que marcou",
-                fontSize = 11.sp, color = Color.Gray, maxLines = 2, textAlign = TextAlign.Center,
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { vm.undo() }, enabled = game.events.isNotEmpty(), colors = ButtonDefaults.secondaryButtonColors()) { Text("↩") }
-                Button(onClick = { go(Step.Confirm) }, colors = ButtonDefaults.primaryButtonColors()) { Text("✓") }
             }
         }
     }
